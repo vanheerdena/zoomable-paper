@@ -126,10 +126,10 @@ h1{font:400 29px/1.22 var(--sans);letter-spacing:-.005em;margin:0 0 18px;color:#
 .meterL .tick{position:absolute;left:0;right:0;height:1.5px;background:rgba(255,255,255,.85)}
 
 /* depth slider under the paragraph (the gesture is sideways) */
-.meterR{position:fixed;z-index:22;opacity:0;transition:opacity .22s;pointer-events:none;padding:8px 14px 9px;border-radius:14px;
-  background:rgba(255,255,255,.8);backdrop-filter:blur(16px) saturate(1.5);-webkit-backdrop-filter:blur(16px) saturate(1.5);
-  box-shadow:0 8px 28px rgba(40,10,35,.16);border:1px solid rgba(255,255,255,.7)}
-.meterR.show{opacity:1}
+.g-depthrow{display:grid;grid-template-rows:0fr;transition:grid-template-rows .28s cubic-bezier(.2,.8,.2,1)}
+.g-depthrow>div{overflow:hidden;min-height:0}
+.glass.depthing .g-depthrow{grid-template-rows:1fr}
+.meterR{padding:8px 22px 4px;min-width:min(420px,calc(100vw - 40px))}
 .meterR .scopeLbl{font:700 9.5px var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--plum);opacity:.65}
 .meterR .track{position:relative;height:4px;border-radius:2px;background:linear-gradient(90deg,rgba(72,18,59,.15),rgba(72,18,59,.55));margin:11px 6px 9px}
 .meterR .stop{position:absolute;top:-3px;width:10px;height:10px;margin-left:-5px;border-radius:50%;background:#fff;box-shadow:0 0 0 1.5px rgba(72,18,59,.38)}
@@ -143,6 +143,8 @@ h1{font:400 29px/1.22 var(--sans);letter-spacing:-.005em;margin:0 0 18px;color:#
   background:rgba(255,255,255,.76);backdrop-filter:blur(22px) saturate(1.7);-webkit-backdrop-filter:blur(22px) saturate(1.7);
   border:1px solid rgba(255,255,255,.8);box-shadow:0 1px 1px rgba(0,0,0,.05),0 14px 40px rgba(40,10,35,.2);
   border-radius:22px;font:500 12.5px/1.3 var(--sans);color:#2b2b2b;overflow:hidden;user-select:none;-webkit-user-select:none}
+.glass{transition:box-shadow .35s ease,border-color .35s ease}
+.glass.live{border-color:rgba(72,18,59,.28);box-shadow:0 1px 1px rgba(0,0,0,.05),0 14px 40px rgba(40,10,35,.24),0 0 0 3px rgba(72,18,59,.10)}
 .glass.bump{animation:bump .35s}
 @keyframes bump{30%{transform:translateX(calc(-50% - 6px))}60%{transform:translateX(calc(-50% + 5px))}}
 .g-status{display:flex;align-items:center;gap:12px;padding:9px 16px;cursor:pointer;white-space:nowrap}
@@ -308,7 +310,7 @@ kbd{font:600 11px var(--sans);border:1px solid #ccc;border-bottom-width:2px;bord
 <body>
 <div class="strip">
   <span><b>Interactive reading demo</b></span>
-  <span class="hint">Pinch: length · Swipe a paragraph: depth · Twist: time, from 2021 to 2026</span>
+  <span class="hint">Pinch: length · Swipe: depth · Double-tap: time</span>
   <span class="sp"></span>
   <button id="aboutBtn" type="button">How it works</button>
 </div>
@@ -345,10 +347,10 @@ kbd{font:600 11px var(--sans);border:1px solid #ccc;border-bottom-width:2px;bord
 
 <div class="vignette" id="vig"></div>
 <div class="meterL" id="meterL"><div class="lbls"><span>Extended</span><span>Full</span><span>Summary</span><span>Headlines</span></div><div class="cap"><div class="fill"></div><i class="tick" style="bottom:25%"></i><i class="tick" style="bottom:50%"></i><i class="tick" style="bottom:75%"></i></div></div>
-<div class="meterR" id="meterR"><div class="scopeLbl">This paragraph</div><div class="track"><i class="stop" style="left:0%"></i><i class="stop" style="left:50%"></i><i class="stop" style="left:100%"></i><i class="thumb"></i></div><div class="names"><span></span><span></span><span></span></div></div>
 
 <div class="glass" id="glass" aria-label="Reading controls">
   <div class="g-echo"><div><div class="row"><span id="gIcon"></span><div><b id="gTitle"></b><span id="gScope"></span></div></div></div></div>
+  <div class="g-depthrow"><div><div class="meterR" id="meterR"><div class="scopeLbl">Depth · this paragraph</div><div class="track"><i class="stop" style="left:0%"></i><i class="stop" style="left:50%"></i><i class="stop" style="left:100%"></i><i class="thumb"></i></div><div class="names"><span></span><span></span><span></span></div></div></div></div>
   <div class="g-status" id="gStatus" role="button" tabindex="0">
     <i class="g-dot" id="gDot"></i><span class="g-lens" id="gLens"></span>
     <i class="g-sep"></i><span class="g-bars" id="gBars"><i style="height:5px"></i><i style="height:8px"></i><i style="height:11px"></i><i style="height:14px"></i></span><span id="gL"></span>
@@ -378,8 +380,8 @@ kbd{font:600 11px var(--sans);border:1px solid #ccc;border-bottom-width:2px;bord
     <p>Every paragraph exists at four lengths and three depths, for four audiences, and the evidence around it can be turned back to the day it was published. Words the versions share stay on the page and glide into place, so you can watch the text change rather than reload.</p>
     <div class="gest">
       <div><b>Pinch out · pinch in</b>Longer or shorter, for the whole paper. A meter appears on the right edge. Trackpad pinch, or <kbd>+</kbd> <kbd>−</kbd></div>
-      <div><b>Swipe a paragraph left · right</b>More technical or plainer, for that paragraph only. A slider appears under it. <kbd>→</kbd> <kbd>←</kbd> change all</div>
-      <div><b>Twist two fingers</b>Move through time from publication in 2021 to 2026. Clockwise adds evidence published since; anticlockwise takes it away. On a trackpad, circle two fingers. Or drag the dial, or <kbd>,</kbd> <kbd>.</kbd></div>
+      <div><b>Swipe a paragraph left · right</b>More technical or plainer, for that paragraph only. A slider appears in the bar at the bottom. <kbd>→</kbd> <kbd>←</kbd> change all</div>
+      <div><b>Double-tap, or twist two fingers</b>Move through time from publication in 2021 to 2026. Each double-tap adds the next year of evidence. Clockwise adds evidence published since; anticlockwise takes it away. On a trackpad, circle two fingers. Or drag the dial, or <kbd>,</kbd> <kbd>.</kbd></div>
       <div><b>Reading as</b>Choose Researcher, Clinician, Policymaker or Public in the header or the glass panel. Keys <kbd>1</kbd> to <kbd>4</kbd></div>
     </div>
     <p style="font-size:12.5px;color:#555">The glass panel at the bottom shows where you are and echoes each gesture. Hover over it, or tap it, for every control. Researcher, full length, as published is the authors’ original text. Press <kbd>0</kbd> to return to it.</p>
@@ -727,17 +729,18 @@ let echoT;
 function echo(kind, arg, title, scope){
   $("gIcon").innerHTML = ICON[kind](arg);
   $("gTitle").textContent = title; $("gScope").textContent = scope;
-  glass.classList.add("echo");
+  glass.classList.add("echo"); liveGlass();
   clearTimeout(echoT); echoT = setTimeout(() => glass.classList.remove("echo"), 1700);
 }
 function bump(){ glass.classList.remove("bump"); void glass.offsetWidth; glass.classList.add("bump"); }
-function vignette(){ const v = $("vig"); v.classList.remove("flash"); void v.offsetWidth; v.classList.add("flash"); }
-function scopeRing(i){ const el = paraEls[i]; el.classList.remove("scope"); void el.offsetWidth; el.classList.add("scope"); setTimeout(() => el.classList.remove("scope"), 1200); }
+function vignette(){}
+function scopeRing(){}
 function showMeterL(level, frac){
   const m = $("meterL");
   m.querySelector(".fill").style.height = clamp((level + 1 + frac) / 4, 0.06, 1) * 100 + "%";
   m.querySelectorAll(".lbls span").forEach((s, k) => s.classList.toggle("on", 3 - k === level));
   m.classList.add("show"); clearTimeout(m._t); m._t = setTimeout(() => m.classList.remove("show"), 1100);
+  liveGlass();
 }
 let lastTouchY = null;
 // the thumb moves with resistance up to 55% of the way, then snaps onto the next stop once the swipe will commit
@@ -746,18 +749,18 @@ function detent(px, threshold, r){
   if(target < 0 || target > 2) return {frac: dir * Math.min(p * 0.12, 0.12), target: r};
   return {frac: p >= 1 ? dir : dir * p * 0.55, target: p >= 1 ? target : r};
 }
-function showMeterR(i, r, frac, target){
-  const m = $("meterR"), pr = paraEls[i].getBoundingClientRect();
+function showMeterR(i, r, frac, target, hold){
+  const m = $("meterR");
   const names = LENSES[S.lens].depth, on = target == null ? r : target;
   m.querySelectorAll(".names span").forEach((s, k) => { s.textContent = names[k]; s.classList.toggle("on", k === on); });
   m.querySelector(".thumb").style.left = clamp((r + frac) / 2, 0, 1) * 100 + "%";
-  const w = Math.min(pr.width, 440);
-  m.style.width = w + "px";
-  m.style.left = pr.left + (pr.width - w) / 2 + "px";
-  const below = Math.min(pr.bottom + 12, (lastTouchY == null ? innerHeight / 2 : lastTouchY) + 70);
-  m.style.top = clamp(below, 70, innerHeight - 190) + "px";
-  m.classList.add("show"); clearTimeout(m._t); m._t = setTimeout(() => m.classList.remove("show"), 1100);
+  glass.classList.add("depthing"); liveGlass();
+  clearTimeout(m._t);
+  if(!hold) m._t = setTimeout(() => glass.classList.remove("depthing"), 1200);   // stays up while a finger is down
 }
+function hideMeterR(){ const m = $("meterR"); clearTimeout(m._t); glass.classList.remove("depthing"); }
+let glassLiveT;
+function liveGlass(){ glass.classList.add("live"); clearTimeout(glassLiveT); glassLiveT = setTimeout(() => glass.classList.remove("live"), 1300); }
 
 /* ================= state changes ================= */
 function changeLength(dl, y){
@@ -1026,7 +1029,13 @@ function setInsights(on, quiet){
 $("insBtn").addEventListener("click", e => { e.stopPropagation(); setInsights(!S.insights); });
 
 /* ================= touch: pinch, twist and swipe ================= */
-let pinch = null, swipe = null;
+let pinch = null, swipe = null, lastTap = null;
+function tapTime(y){
+  const next = S.T + 1 > STOPS.length - 1 ? 0 : S.T + 1;
+  setTime(next, y);
+  $("gScope").textContent = next === STOPS.length - 1 ? "Double-tap again to return to 2021" : "Double-tap again for " + STOPS[next + 1].short;
+  hideTip();
+}
 const dist = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
 const angle = (a, b) => Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX) * 180 / Math.PI;
 const normA = a => ((a + 540) % 360) - 180;
@@ -1035,8 +1044,8 @@ document.addEventListener("touchstart", e => {
   if(e.touches.length === 2){
     const [a, b] = e.touches;
     pinch = {d0:dist(a, b), a0:angle(a, b), y:(a.clientY + b.clientY) / 2, mode:null, ids:[a.identifier, b.identifier]};
-    if(swipe) resetDrag(swipe.el);
-    swipe = null;
+    if(swipe){ resetDrag(swipe.el); hideMeterR(); }
+    swipe = null; lastTap = null;
   } else if(e.touches.length === 1 && !pinch){
     const t = e.touches[0];
     const i = paraAt(t.clientY), el = paraEls[i], r = el.getBoundingClientRect();
@@ -1074,13 +1083,17 @@ document.addEventListener("touchmove", e => {
     if(swipe.mode === "h"){
       e.preventDefault(); swipe.dx = dx; swipe.y = t.clientY; lastTouchY = t.clientY;
       drag(swipe.el, dx, swipe.i);
-      const dt = detent(dx, 70, S.R[swipe.i]);
-      showMeterR(swipe.i, S.R[swipe.i], dt.frac, dt.target);
+      if(Math.abs(dx) > 30){ const dt = detent(dx, 70, S.R[swipe.i]); showMeterR(swipe.i, S.R[swipe.i], dt.frac, dt.target, true); }
     }
   }
 }, {passive:false});
 document.addEventListener("touchend", e => {
   if(pinch && e.touches.length < 2){ pinch = null; pinchRelease(); return; }
+  if(swipe && !swipe.mode && e.touches.length === 0 && Date.now() - swipe.t0 < 300 && !e.target.closest("a,button,.cite,.glass,.panel,.pop,.tr-chip")){
+    const now = Date.now();
+    if(lastTap && now - lastTap.t < 340 && Math.hypot(swipe.x0 - lastTap.x, swipe.y0 - lastTap.y) < 40){ lastTap = null; tapTime(swipe.y0); }
+    else lastTap = {t:now, x:swipe.x0, y:swipe.y0};
+  }
   if(swipe && swipe.mode === "h"){
     const s = swipe, fast = Math.abs(s.dx) / (Date.now() - s.t0) > 0.45;
     resetDrag(s.el);
@@ -1089,7 +1102,7 @@ document.addEventListener("touchend", e => {
   }
   swipe = null;
 }, {passive:true});
-document.addEventListener("touchcancel", () => { if(pinch) pinchRelease(); pinch = null; if(swipe) resetDrag(swipe.el); swipe = null; });
+document.addEventListener("touchcancel", () => { if(pinch) pinchRelease(); pinch = null; if(swipe){ resetDrag(swipe.el); hideMeterR(); } swipe = null; });
 function drag(el, dx, i){
   const edge = (dx < 0 && S.R[i] === 2) || (dx > 0 && S.R[i] === 0);
   el.style.transition = "none";
@@ -1156,6 +1169,12 @@ window.addEventListener("wheel", e => {
     else { const i = paraAt(e.clientY), dt = detent(-xAcc, 90, S.R[i]); showMeterR(i, S.R[i], dt.frac, dt.target); }
   }
 }, {passive:false});
+
+body.addEventListener("dblclick", e => {
+  if(e.target.closest("a,.cite")) return;
+  try{ getSelection().removeAllRanges(); }catch(err){}
+  tapTime(e.clientY);
+});
 
 /* ================= keyboard ================= */
 document.addEventListener("keydown", e => {
