@@ -1059,7 +1059,9 @@ function tapTime(y){
 const dist = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
 const angle = (a, b) => Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX) * 180 / Math.PI;
 const normA = a => ((a + 540) % 360) - 180;
+let lastTouchAt = 0;
 document.addEventListener("touchstart", e => {
+  lastTouchAt = Date.now();
   if(e.target.closest(".panel,.glass,.pop")) return;
   if(e.touches.length === 2){
     const [a, b] = e.touches;
@@ -1192,6 +1194,7 @@ window.addEventListener("wheel", e => {
 
 body.addEventListener("dblclick", e => {
   if(e.target.closest("a,.cite")) return;
+  if(Date.now() - lastTouchAt < 800) return;   // touch double-taps are handled in touchend; browsers also fire dblclick for them
   try{ getSelection().removeAllRanges(); }catch(err){}
   tapTime(e.clientY);
 });
