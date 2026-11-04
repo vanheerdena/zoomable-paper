@@ -5,7 +5,7 @@ Open it on an iPad in Safari and use your fingers on the text.
 
 - Pinch out or in: longer or shorter, for the whole paper. A meter appears on the right edge.
 - Swipe a paragraph left or right: more technical or plainer, for that paragraph. A slider appears under it.
-- Double-tap, or twist two fingers: move through time, from publication in 2021 to 2026. Each double-tap adds the next year of evidence. On a computer, double-click, circle two fingers on a trackpad, or drag the dial.
+- Double-tap, or twist two fingers: move through time, from publication in 2021 to 2026. Each double-tap adds the next year of evidence to every paragraph; in summaries the closing sentence updates to the newest finding. On a computer, double-click, circle two fingers on a trackpad, or drag the dial.
 - Reading as: Researcher, Clinician, Policymaker or Public, in the header or the glass panel.
 - Reader insights: a simulated layer for authors and journals showing where readers zoom, simplify and stop.
 - On a computer: trackpad pinch and two-finger swipe, or the keys + − ← → , . 1–4 and i. Press 0 to return to the published text.
