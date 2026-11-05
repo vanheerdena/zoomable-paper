@@ -17,3 +17,14 @@ The published text is the centre position of the reader: Researcher, full length
 This is not a PLOS product. Inspired by an interaction concept shared by Fabian (@fabrohl).
 
 A one-minute teaser video is at [teaser.mp4](https://vanheerdena.github.io/zoomable-paper/teaser.mp4). Its narration and music are AI-generated (Google Gemini TTS and ElevenLabs Music via fal.ai); the reader statistics shown are simulated.
+
+## Second demo: a research article with methods, results and tables
+
+[vanheerdena.github.io/zoomable-paper/jias/](https://vanheerdena.github.io/zoomable-paper/jias/) applies the same reader to Gati Mirembe B, et al. "High recent PrEP adherence with point-of-care urine tenofovir testing and adherence counselling among young African women: results from the INSIGHT cohort". J Int AIDS Soc. 2024;27(12):e26389, reproduced under CC BY 4.0.
+
+What is new here:
+- Tables and the flow figure are zoomable units: swipe a table for a plain view (icon arrays, natural frequencies), the published table, or a technical view (forest plot of adjusted and unadjusted ratios, model specification, sensitivity bounds, site-level supplement data).
+- Tap an underlined statistic to see what it means, where it comes from and what to keep in mind.
+- Every number in every generated version is checked against the article, its supplement and the evidence pack; values derived from published counts are labelled DERIVED and appear only in appendix-level detail.
+- Section headlines and summaries: at the shortest lengths each section collapses to one sentence.
+- The time dial covers December 2024 to November 2026 in half-year steps, with 28 later sources verified in PubMed.

@@ -314,7 +314,7 @@ kbd{font:600 11px var(--sans);border:1px solid #ccc;border-bottom-width:2px;bord
   <span><b>Interactive reading demo</b></span>
   <span class="hint">Pinch: length · Swipe: depth · Double-tap: time</span>
   <span class="sp"></span>
-  <a class="teaser" href="teaser.mp4" target="_blank" rel="noopener">▶ <span class="lg">Watch the 1-minute </span>teaser</a>
+  <a class="teaser" href="teaser.mp4" target="_blank" rel="noopener">▶&#xFE0E; <span class="lg">Watch the 1-minute </span>teaser</a>
   <button id="aboutBtn" type="button">How it works</button>
 </div>
 
@@ -404,7 +404,14 @@ const DATA = {"lensOrder": ["researcher", "clinician", "policymaker", "public"],
 const LENS_ORDER = DATA.lensOrder;
 const LENSES = DATA.lenses;
 const STOPS = DATA.stops;
-const NP = LENSES[LENS_ORDER[0]].paras.length;
+const UNITS = DATA.units || null;   // a paper with tables and headings lists its units; otherwise every unit is a paragraph
+const NP = UNITS ? UNITS.length : LENSES[LENS_ORDER[0]].paras.length;
+const kindOf = i => UNITS ? UNITS[i].kind : "p";
+const isText = i => kindOf(i) === "p";
+const UI = Object.assign({published:"March 2021", pubShort:"2021", journal:"PLOS Medicine", tableDepth:["Plain","As published","Technical"],
+  side:["<b>Reached the end</b>66%, in the top 10% of PLOS Medicine editorials", "<b>Most common view</b>Full length, standard depth", "<b>Turned the time dial</b>31%, most often back to publication", "<b>Most-opened evidence</b>[14] WHO excess mortality estimates, 913 opens"], topRef:14}, DATA.ui || {});
+const depthName = (i, r) => isText(i) ? LENSES[S.lens].depth[r] : UI.tableDepth[r];
+function cellHTML(i, lens, l, r){ const sh = DATA.shared && DATA.shared[i]; return sh ? (sh[`${l}-${r}`] || "") : LENSES[lens].paras[i].cells[`${l}-${r}`]; }
 const LN = ["Headlines","Summary","Full","Extended"];
 const LENS_COLOR = {researcher:"#48123b", clinician:"#2f7d6d", policymaker:"#3c5ea8", public:"#c27a28"};
 const PERSON = {researcher:"A researcher", clinician:"A clinician", policymaker:"A policymaker", public:"A member of the public"};
@@ -431,9 +438,9 @@ function tokenize(html){
   const box = document.createElement("div"); box.innerHTML = html;
   const out = []; let tk = null;
   const flush = () => { if(tk) out.push(tk); tk = null; };
-  const push = (h, txt, date, refs, roll) => {
-    if(!tk) tk = {html:"", text:"", date:"", refs:[], roll:false};
-    tk.html += h; tk.text += txt; if(date && date > tk.date) tk.date = date; if(refs) tk.refs.push(...refs); if(roll) tk.roll = true;
+  const push = (h, txt, date, refs, roll, xd) => {
+    if(!tk) tk = {html:"", text:"", date:"", refs:[], roll:false, xd:false};
+    tk.html += h; tk.text += txt; if(date && date > tk.date) tk.date = date; if(refs) tk.refs.push(...refs); if(roll) tk.roll = true; if(xd) tk.xd = true;
   };
   const walk = (node, ctx) => {
     for(const c of Array.from(node.childNodes)){
@@ -441,12 +448,13 @@ function tokenize(html){
         for(const p of c.textContent.split(/(\s+)/)){
           if(!p) continue;
           if(/^\s+$/.test(p)){ flush(); continue; }
-          let h = esc(p); if(ctx.i) h = "<i>"+h+"</i>"; if(ctx.sup) h = "<sup>"+h+"</sup>";
-          push(h, p, ctx.date, null, ctx.roll);
+          let h = esc(p); if(ctx.i) h = "<i>"+h+"</i>"; if(ctx.sup) h = "<sup>"+h+"</sup>"; if(ctx.sub) h = "<sub>"+h+"</sub>";
+          push(h, p, ctx.date, null, ctx.roll, ctx.xd);
         }
       } else if(c.nodeType === 1){
-        if(c.classList.contains("cite")) push(c.outerHTML, c.textContent, ctx.date, c.dataset.refs.split(",").map(Number), ctx.roll);
-        else walk(c, {i:ctx.i || c.tagName === "I", sup:ctx.sup || c.tagName === "SUP", date:c.classList.contains("ev") ? c.dataset.date : ctx.date, roll:ctx.roll || c.classList.contains("roll")});
+        if(c.classList.contains("cite")) push(c.outerHTML, c.textContent, ctx.date, c.dataset.refs.split(",").map(Number), ctx.roll, ctx.xd);
+        else if(c.classList.contains("num")) push(c.outerHTML, c.textContent, ctx.date, null, ctx.roll, ctx.xd);
+        else walk(c, {i:ctx.i || c.tagName === "I", sup:ctx.sup || c.tagName === "SUP", sub:ctx.sub || c.tagName === "SUB", date:c.classList.contains("ev") ? c.dataset.date : ctx.date, roll:ctx.roll || c.classList.contains("roll"), xd:ctx.xd || c.classList.contains("xd")});
       }
     }
   };
@@ -457,7 +465,7 @@ function tokenize(html){
 const baseCache = new Map(), tokCache = new Map();
 function base(i, lens, l, r){
   const k = `${i}|${lens}|${l}-${r}`;
-  if(!baseCache.has(k)){ const tk = tokenize(LENSES[lens].paras[i].cells[`${l}-${r}`]); tk.dated = tk.some(t => t.date); baseCache.set(k, tk); }
+  if(!baseCache.has(k)){ const tk = isText(i) ? tokenize(cellHTML(i, lens, l, r)) : []; tk.dated = tk.some(t => t.date); baseCache.set(k, tk); }
   return baseCache.get(k);
 }
 function tokens(i, lens, l, r, t){
@@ -473,7 +481,7 @@ function tokens(i, lens, l, r, t){
   return tokCache.get(k);
 }
 // a cell's identity: lens, length, depth and (only if it holds dated evidence) the time stop
-function cellKey(i, s){ const b = base(i, s.lens, s.L, s.R[i]); return `${s.lens}|${s.L}-${s.R[i]}` + (b.dated ? `|${s.T}` : ""); }
+function cellKey(i, s){ if(!isText(i)) return `t|${s.L}-${s.R[i]}`; const b = base(i, s.lens, s.L, s.R[i]); return `${s.lens}|${s.L}-${s.R[i]}` + (b.dated ? `|${s.T}` : ""); }
 const isOrig = (s, i) => s.lens === ORIGIN.lens && s.L === ORIGIN.L && s.R[i] === ORIGIN.R;
 
 /* LCS diff on token keys: for each new token, the index of the old token it continues (or -1).
@@ -498,8 +506,8 @@ function diff(a, b){
 }
 
 /* ================= DOM ================= */
-function makeNode(t){ const s = document.createElement("span"); s.className = "w"+(t.add?" add":""); s.innerHTML = t.html; s._t = t; return s; }
-function setNode(s, t){ if(s._t.html !== t.html) s.innerHTML = t.html; s.className = "w"+(t.add?" add":""); s._t = t; }
+function makeNode(t){ const s = document.createElement("span"); s.className = "w"+(t.add?" add":"")+(t.xd?" xd":""); s.innerHTML = t.html; s._t = t; return s; }
+function setNode(s, t){ if(s._t.html !== t.html) s.innerHTML = t.html; s.className = "w"+(t.add?" add":"")+(t.xd?" xd":""); s._t = t; }
 function build(el, nodes){
   el.textContent = "";
   nodes.forEach((n, k) => { if(k) el.appendChild(document.createTextNode(" ")); el.appendChild(n); });
@@ -514,19 +522,30 @@ function cleanup(el){
   (el._nodes || []).forEach(n => { n.style.transition = ""; n.style.transform = ""; n.style.left = ""; n.style.top = ""; n.style.opacity = ""; n.style.filter = ""; });
 }
 
-const paraEls = [], traceEls = [];
+const paraEls = [], traceEls = [], order = [], orderUnit = [];
 for(let i = 0; i < NP; i++){
-  const p = document.createElement("p"); p.className = "para"; p.dataset.i = i; body.appendChild(p); paraEls.push(p);
+  const u = UNITS ? UNITS[i] : null;
+  if(u && u.head) for(const [lv, txt] of [["h2", u.head.sec], ["h3", u.head.sub]]){ if(!txt) continue;
+    const h = document.createElement(lv); h.className = lv === "h2" ? "sec-h" : "sub-h"; h.innerHTML = txt; body.appendChild(h); order.push(h); orderUnit.push(i); }
+  const p = document.createElement(isText(i) ? "p" : "div"); p.className = "para" + (isText(i) ? "" : " tbl " + kindOf(i)); p.dataset.i = i; body.appendChild(p); paraEls.push(p); order.push(p); orderUnit.push(i);
   const tr = document.createElement("div"); tr.className = "trace"; tr.dataset.i = i;
   tr.innerHTML = `<div class="tr-in"><button type="button" class="tr-chip"><i class="tr-dot"></i><span class="tr-chip-txt"></span><span class="tr-more">Show</span></button>
     <div class="tr-body"><div><div class="tr-box"><div class="tr-grid">${"<i></i>".repeat(12)}</div>
     <div class="tr-main"><div class="tr-stats"></div><div class="tr-note"></div><div class="tr-live"></div></div><div class="tr-mix"></div></div></div></div></div>`;
   tr.querySelector(".tr-chip").addEventListener("click", e => { e.stopPropagation(); toggleTrace(i); });
-  body.appendChild(tr); traceEls.push(tr);
+  if(!isText(i)) tr.classList.add("none");
+  body.appendChild(tr); traceEls.push(tr); order.push(tr); orderUnit.push(i);
+}
+function paintTable(el, i){
+  const html = cellHTML(i, S.lens, S.L, S.R[i]);
+  el.innerHTML = html ? `<div class="tcell">${html}</div>` : ""; el._nodes = [];
+  el.classList.toggle("void", !html);
 }
 function paint(i){
   const el = paraEls[i];
+  if(!isText(i)){ paintTable(el, i); el._cell = cellKey(i, S); el.classList.toggle("gen", !isOrig(S, i)); setLClass(el, S.L); return; }
   build(el, tokens(i, S.lens, S.L, S.R[i], S.T).map(makeNode));
+  el.classList.toggle("void", !el._nodes.length);
   el._cell = cellKey(i, S);
   el.classList.toggle("gen", !isOrig(S, i));
   setLClass(el, S.L);
@@ -546,12 +565,8 @@ function paraAt(y){
    Layout happens once. Everything that moves afterwards is a transform, an opacity change,
    or a relative offset on the words that glide: paragraphs (and all below them) slide as blocks,
    surviving words glide, leavers fade as one layer per paragraph, newcomers fade in as runs. */
-function blockList(){
-  const b = [];
-  for(let i = 0; i < NP; i++){ b.push(paraEls[i]); b.push(traceEls[i]); }
-  return [...b, $("refs"), document.querySelector(".foot"), document.querySelector(".credit")];
-}
-const blockPara = k => k < 2*NP ? Math.floor(k/2) : NP;
+function blockList(){ return [...order, $("refs"), document.querySelector(".foot"), document.querySelector(".credit")].filter(Boolean); }
+const blockPara = k => k < order.length ? orderUnit[k] : NP;
 function morph(next, opt){
   const t0 = performance.now();
   const vh = innerHeight;
@@ -564,12 +579,13 @@ function morph(next, opt){
 
   // 1. read the current picture, including anything still in flight
   const oldTop = blocks.map(b => b.getBoundingClientRect().top);
-  const jobs = [];
+  const jobs = [], tjobs = [];
   paraEls.forEach((el, i) => {
     const cell = cellKey(i, next);
     if(el._cell === cell) return;
     const r = el.getBoundingClientRect();
     const live = !reduceMotion && r.bottom > -250 && r.top < vh + 250;
+    if(!isText(i)){ tjobs.push({el, i, cell, live, old:el.innerHTML, h:r.height, delay:Math.min(Math.abs(i - ai) * T.ripple, T.rippleMax)}); return; }
     const job = {el, i, cell, live, delay: Math.min(Math.abs(i - ai) * T.ripple, T.rippleMax)};
     if(live) job.old = el._nodes.map(n => {
       const q = n.getBoundingClientRect();
@@ -579,9 +595,9 @@ function morph(next, opt){
     jobs.push(job);
   });
   Object.assign(S, {lens:next.lens, L:next.L, R:next.R.slice(), T:next.T});
-  if(!jobs.length){ afterChange(); return false; }
+  if(!jobs.length && !tjobs.length){ afterChange(); return false; }
   jobs.forEach(j => cleanup(j.el));
-  blocks.forEach(b => { b.style.transition = "none"; b.style.transform = ""; });
+  blocks.forEach(b => { b.style.transition = "none"; b.style.transform = ""; b.style.opacity = ""; });
 
   // 2. write the new text, reusing the word nodes that survive
   jobs.forEach(j => {
@@ -600,9 +616,11 @@ function morph(next, opt){
     build(el, nodes);
     el._cell = j.cell;
     el.classList.toggle("gen", !isOrig(S, j.i));
+    el.classList.toggle("void", !nodes.length);
     setLClass(el, S.L);
     markHot(j.i);
   });
+  tjobs.forEach(j => { clearTimeout(j.el._timer); paintTable(j.el, j.i); j.el._cell = j.cell; j.el.classList.toggle("gen", !isOrig(S, j.i)); setLClass(j.el, S.L); });
 
   // 3. keep the point under the fingers still: one scroll correction, not one per frame
   const nr = aEl.getBoundingClientRect();
@@ -629,7 +647,9 @@ function morph(next, opt){
     const dy = oldTop[k] - newTop[k];
     const near = Math.min(oldTop[k], newTop[k]) < vh * 1.4 && Math.max(oldTop[k], newTop[k]) + (newBottom[k] - newTop[k]) > -vh * 0.4;
     b._dy = near && Math.abs(dy) > 0.5;
-    if(b._dy) b.style.transform = `translateY(${dy}px)`;
+    b._far = b._dy && Math.abs(dy) > vh * 0.8;   // a long journey reads as a gap: travel a little and fade in instead
+    if(b._dy) b.style.transform = `translateY(${b._far ? Math.sign(dy) * 90 : dy}px)`;
+    if(b._far) b.style.opacity = "0";
   });
   // blur is lovely on local changes but expensive when most of the page rewrites at once
   const churn = jobs.filter(j => j.live).reduce((a, j) => a + j.removed.length + j.el._nodes.filter(n => !n._from).length, 0);
@@ -679,12 +699,26 @@ function morph(next, opt){
     }
   });
 
+  // tables cross-fade: the old version lies over the new one and fades away
+  tjobs.forEach(j => {
+    if(!j.live) return;
+    const tc = j.el.querySelector(".tcell");
+    if(tc){ tc.style.transition = "none"; tc.style.opacity = "0"; }
+    if(j.old){ const g = document.createElement("div"); g.className = "tghost"; g.innerHTML = j.old; g.style.height = j.h + "px"; j.el.appendChild(g); j.g = g; }
+  });
   // 6. play
   void document.body.offsetWidth;
+  tjobs.forEach(j => {
+    if(!j.live) return;
+    const tc = j.el.querySelector(".tcell");
+    if(tc){ tc.style.transition = `opacity ${ms(T.newDur)}ms ease ${ms(j.delay + T.newDelay)}ms`; tc.style.opacity = ""; }
+    if(j.g){ j.g.style.transition = `opacity ${ms(T.ghost)}ms ease-out ${ms(j.delay)}ms`; j.g.style.opacity = "0"; }
+    j.el._timer = setTimeout(() => { j.el.querySelectorAll(".tghost").forEach(g => g.remove()); }, ms(j.delay + T.cleanup));
+  });
   blocks.forEach((b, k) => {
     if(!b._dy) return;
-    b.style.transition = `transform ${ms(T.move)}ms ${EASE} ${ms(blockDelay[k] + T.moveDelay)}ms`;
-    b.style.transform = "";
+    b.style.transition = `transform ${ms(T.move)}ms ${EASE} ${ms(blockDelay[k] + T.moveDelay)}ms` + (b._far ? `, opacity ${ms(T.newDur)}ms ease ${ms(blockDelay[k] + T.moveDelay)}ms` : "");
+    b.style.transform = ""; if(b._far) b.style.opacity = "";
   });
   const end = performance.now();
   jobs.forEach(j => {
@@ -709,7 +743,7 @@ function morph(next, opt){
     el._timer = setTimeout(() => cleanup(el), ms(d + T.cleanup));
   });
   clearTimeout(morph._bt);
-  morph._bt = setTimeout(() => blocks.forEach(b => { b.style.transition = ""; b.style.transform = ""; }), ms(T.rippleMax + T.cleanup));
+  morph._bt = setTimeout(() => blocks.forEach(b => { b.style.transition = ""; b.style.transform = ""; b.style.opacity = ""; }), ms(T.rippleMax + T.cleanup));
   afterChange();
   if(DEBUG) debugSample(jobs, t0);
   return true;
@@ -759,8 +793,9 @@ function detent(px, threshold, r){
 }
 function showMeterR(i, r, frac, target, hold){
   const m = $("meterR");
-  const names = LENSES[S.lens].depth, on = target == null ? r : target;
-  m.querySelectorAll(".names span").forEach((s, k) => { s.textContent = names[k]; s.classList.toggle("on", k === on); });
+  const on = target == null ? r : target;
+  m.querySelectorAll(".names span").forEach((s, k) => { s.textContent = depthName(i, k); s.classList.toggle("on", k === on); });
+  m.querySelector(".scopeLbl").textContent = isText(i) ? "Depth · this paragraph" : "View · this " + (kindOf(i) === "fig" ? "figure" : "table");
   m.querySelector(".thumb").style.left = clamp((r + frac) / 2, 0, 1) * 100 + "%";
   glass.classList.add("depthing"); liveGlass();
   clearTimeout(m._t);
@@ -790,7 +825,7 @@ function changeDepth(dr, y, all){
   }
   closePop();
   morph({...cur(), R}, {y, i});
-  const name = LENSES[S.lens].depth[R[i]];
+  const name = depthName(i, R[i]);
   if(all) vignette(); else { scopeRing(i); showMeterR(i, R[i], 0); }
   echo("depth", dr, (dr > 0 ? "More technical · " : "Plainer · ") + name, all ? "Whole paper" : "This paragraph");
 }
@@ -804,12 +839,12 @@ function setDepthAll(r){
 function setLength(l){ if(l === S.L) return; changeLength(l - S.L, null); }
 function setTime(t, y){
   t = clamp(t, 0, STOPS.length - 1);
-  if(t === S.T){ bump(); echo("time", t, t === 0 ? "Already as published" : "Already at 2026", "Whole paper"); return; }
+  if(t === S.T){ bump(); echo("time", t, t === 0 ? "Already as published" : "Already at " + STOPS[STOPS.length - 1].short, "Whole paper"); return; }
   const dir = t > S.T ? 1 : -1;
   closePop();
   const changed = morph({...cur(), T:t}, {y});
   vignette();
-  const title = t === 0 ? "As published, March 2021" : "Added evidence to " + STOPS[t].short;
+  const title = t === 0 ? "As published, " + UI.published : "Added evidence to " + STOPS[t].short;
   echo("time", t, title, changed === false ? "No added evidence at headline length · pinch out to see it" : (dir > 0 ? "Later · whole paper" : "Earlier · whole paper"));
 }
 function setLens(k){
@@ -841,7 +876,7 @@ function renderDial(){
   if(S.T > 0) s += `<path d="M${x0} ${y0} A36 36 0 ${A(S.T) > 45 ? 1 : 0} 1 ${xa} ${ya}" fill="none" stroke="#48123b" stroke-width="6" stroke-linecap="round"/>`;
   for(let k = 0; k < n; k++){
     const [lx, ly] = pt(A(k), 50);
-    s += `<text x="${lx}" y="${ly + 3}" text-anchor="middle" style="font:${k === S.T ? 800 : 600} 8.5px 'Open Sans',sans-serif;fill:${k === S.T ? "#48123b" : "#aaa"}">${STOPS[k].short.slice(2)}</text>`;
+    s += `<text x="${lx}" y="${ly + 3}" text-anchor="middle" style="font:${k === S.T ? 800 : 600} 8.5px 'Open Sans',sans-serif;fill:${k === S.T ? "#48123b" : "#aaa"}">${STOPS[k].tick || STOPS[k].short.slice(2)}</text>`;
   }
   s += `<g class="knob" style="transform:rotate(${A(S.T)}deg);transform-origin:50px 50px"><circle cx="50" cy="14" r="7" fill="#fff" stroke="#48123b" stroke-width="2"/></g>`;
   s += `<text x="50" y="53" text-anchor="middle" style="font:700 15px 'Open Sans',sans-serif;fill:#48123b">${STOPS[S.T].short}</text>`;
@@ -863,8 +898,8 @@ function renderGlass(){
   $("gBars").querySelectorAll("i").forEach((b, k) => b.classList.toggle("on", k <= S.L));
   $("gL").textContent = LN[S.L];
   $("gDots").querySelectorAll("i").forEach((b, k) => b.classList.toggle("on", k === r));
-  $("gR").textContent = lens.depth[r] + (isOrig(S, focus) ? " · original" : "");
-  $("gYear").textContent = S.T === 0 ? "2021 · as published" : "Evidence to " + STOPS[S.T].short;
+  $("gR").textContent = depthName(focus, r) + (isOrig(S, focus) ? " · original" : "");
+  $("gYear").textContent = S.T === 0 ? UI.pubShort + " · as published" : "Evidence to " + STOPS[S.T].short;
   document.querySelectorAll(".chipbtn").forEach(b => b.classList.toggle("on", b.dataset.lens === S.lens));
   $("gLen").querySelectorAll("button").forEach(b => b.classList.toggle("on", +b.dataset.l === S.L));
   const same = S.R.every(v => v === S.R[0]);
@@ -913,9 +948,10 @@ const PROFILE = {
   policymaker:{L:[.20,.40,.28,.12], R:[.42,.43,.15]}, public:{L:[.20,.42,.30,.08], R:[.58,.33,.09]}
 };
 const MIX = {researcher:.46, clinician:.21, policymaker:.17, public:.16};
-const PMOD = [{L:[0,0,-.05,.09]}, {R:[0,.04,-.04]}, {L:[0,0,0,.07], R:[0,-.05,.09]}, {R:[.12,-.07,-.05]}, {L:[0,.06,0,0]}, {L:[.07,.05,-.06,-.03], R:[0,-.05,.07]}, {L:[.1,.07,-.07,-.05]}];
-const REACH = [1, .94, .87, .79, .755, .70, .66];
-const INS = {total:8426, paras:[]};
+let PMOD = [{L:[0,0,-.05,.09]}, {R:[0,.04,-.04]}, {L:[0,0,0,.07], R:[0,-.05,.09]}, {R:[.12,-.07,-.05]}, {L:[0,.06,0,0]}, {L:[.07,.05,-.06,-.03], R:[0,-.05,.07]}, {L:[.1,.07,-.07,-.05]}];
+let REACH = [1, .94, .87, .79, .755, .70, .66];
+if(DATA.insights){ PMOD = DATA.insights.mod; REACH = DATA.insights.reach; }
+const INS = {total:DATA.insights ? DATA.insights.total : 8426, paras:[]};
 (() => {
   for(let i = 0; i < NP; i++){
     const r = rng(1000 + i * 77), per = {}, mix = {};
@@ -932,7 +968,7 @@ const INS = {total:8426, paras:[]};
   }
   const r = rng(77);
   DATA.refs.forEach(ref => { ref.opens = Math.round((ref.added ? 160 : 70) + r() * (ref.added ? 520 : 260)); });
-  const top = DATA.refs.find(x => x.n === 14); if(top) top.opens = 913;
+  const top = DATA.refs.find(x => x.n === UI.topRef); if(top) top.opens = 913;
 })();
 const fmt = n => n.toLocaleString("en-GB");
 const pct = x => Math.round(x * 100) + "%";
@@ -964,10 +1000,7 @@ function renderSide(){
     <div class="big" id="insTotal">${fmt(INS.total)}<small>readers</small></div>
     <div class="row"><b>Reading as</b><div class="mix">${LENS_ORDER.map(k => `<i style="width:${MIX[k] / tot * 100}%;background:${LENS_COLOR[k]}"></i>`).join("")}</div>
       <div class="leg">${LENS_ORDER.map(k => `<i style="background:${LENS_COLOR[k]}"></i><span>${LENSES[k].name}</span><span>${pct(MIX[k] / tot)}</span>`).join("")}</div></div>
-    <div class="row"><b>Reached the end</b>66%, in the top 10% of PLOS Medicine editorials</div>
-    <div class="row"><b>Most common view</b>Full length, standard depth</div>
-    <div class="row"><b>Turned the time dial</b>31%, most often back to publication</div>
-    <div class="row"><b>Most-opened evidence</b>[14] WHO excess mortality estimates, 913 opens</div>
+    ${UI.side.map(s => `<div class="row">${s}</div>`).join("")}
     <button type="button" class="exp-all"></button>
     <div class="foot">Under each paragraph, a small chip opens where its readers settle on the length and depth grid, what share reach it, and one suggestion for the authors. Warm underlines mark the most-read sentence: hover or tap one for detail.</div>`;
   syncExpandAll();
@@ -991,7 +1024,7 @@ document.addEventListener("click", e => { const b = e.target.closest(".exp-all")
 function markHot(i){
   const nodes = paraEls[i]._nodes || [];
   nodes.forEach(n => n.classList.remove("hot"));
-  if(!S.insights || nodes.length < 12) return;
+  if(!S.insights || nodes.length < 12 || !isText(i)) return;
   const sents = []; let s = [];
   nodes.forEach(n => { s.push(n); if(/[.!?]['’”]?$/.test(n._t.text) || /^\[[^\]]*\]\.$/.test(n._t.text)){ sents.push(s); s = []; } });
   if(s.length) sents.push(s);
@@ -1004,7 +1037,7 @@ let liveT;
 function liveTick(){
   if(!S.insights) return;
   if(!document.hidden){
-    const vis = paraEls.map((el, i) => [i, el.getBoundingClientRect()]).filter(([, r]) => r.bottom > 0 && r.top < innerHeight).map(([i]) => i);
+    const vis = paraEls.map((el, i) => [i, el.getBoundingClientRect()]).filter(([i, r]) => isText(i) && r.height > 0 && r.bottom > 0 && r.top < innerHeight).map(([i]) => i);
     if(vis.length){
       const i = vis[Math.floor(Math.random() * vis.length)];
       let x = Math.random(), lens = LENS_ORDER[0];
@@ -1019,7 +1052,7 @@ function liveTick(){
       const tot = $("insTotal"); if(tot) tot.firstChild.textContent = fmt(INS.total);
       if(lens === S.lens){ const cell = tr.querySelectorAll(".tr-grid i")[c]; cell.classList.remove("ping"); void cell.offsetWidth; cell.classList.add("ping"); }
       const lv = tr.querySelector(".tr-live");
-      lv.textContent = `${PERSON[lens]} just read this at ${LN[Math.floor(c / 3)]} · ${LENSES[lens].depth[c % 3]}`;
+      lv.textContent = `${(UI.person || PERSON)[lens]} just read this at ${LN[Math.floor(c / 3)]} · ${LENSES[lens].depth[c % 3]}`;
       lv.classList.add("show"); clearTimeout(lv._t); lv._t = setTimeout(() => lv.classList.remove("show"), 3200);
     }
   }
@@ -1232,9 +1265,26 @@ $("scrim").addEventListener("click", e => { if(e.target.id === "scrim") closePan
 const pop = $("pop");
 function closePop(){ pop.classList.remove("open"); }
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function placePop(c){
+  const rc = c.getBoundingClientRect();
+  pop.classList.add("open");
+  const w = pop.offsetWidth;
+  pop.style.left = Math.max(12, Math.min(rc.left + scrollX - w / 2 + rc.width / 2, scrollX + innerWidth - w - 12)) + "px";
+  pop.style.top = (rc.bottom + scrollY + 8) + "px";
+}
 document.addEventListener("click", e => {
+  const nm = e.target.closest(".num");
+  if(nm && DATA.reg && DATA.reg[nm.dataset.k]){
+    e.preventDefault(); e.stopPropagation();
+    const g = DATA.reg[nm.dataset.k];
+    pop.innerHTML = `<div class="k">${g.label}${g.derived ? ' <span class="tag dv">DERIVED</span>' : ""}</div><div class="nd">${g.detail}</div>`
+      + (g.plain ? `<div class="np"><b>In plain terms</b>${g.plain}</div>` : "") + (g.caveat ? `<div class="nc"><b>Keep in mind</b>${g.caveat}</div>` : "")
+      + `<div class="ns">${g.source}</div>`;
+    pop.classList.add("numpop"); placePop(nm); return;
+  }
   const c = e.target.closest(".cite");
   if(!c){ if(!e.target.closest(".pop")) closePop(); return; }
+  pop.classList.remove("numpop");
   e.preventDefault();
   const nums = c.dataset.refs.split(",").map(Number);
   pop.innerHTML = nums.map(n => {
@@ -1243,11 +1293,7 @@ document.addEventListener("click", e => {
     return `<div style="margin-bottom:8px"><div class="k">[${n}]${r.added ? ' <span class="tag">ADDED</span>' : ""}</div>${when}${r.html}
       <div class="lnk">${r.doi ? `<a href="https://doi.org/${r.doi}" target="_blank" rel="noopener">DOI</a>` : ""}${r.pmid ? `<a href="https://pubmed.ncbi.nlm.nih.gov/${r.pmid}/" target="_blank" rel="noopener">PubMed</a>` : ""}<a href="#ref${n}" data-jump="${n}">In reference list</a></div></div>`;
   }).join("");
-  const rc = c.getBoundingClientRect();
-  pop.classList.add("open");
-  const w = pop.offsetWidth;
-  pop.style.left = Math.max(12, Math.min(rc.left + scrollX - w / 2 + rc.width / 2, scrollX + innerWidth - w - 12)) + "px";
-  pop.style.top = (rc.bottom + scrollY + 8) + "px";
+  placePop(c);
 });
 pop.addEventListener("click", e => {
   const j = e.target.closest("[data-jump]"); if(!j) return;
